@@ -1,8 +1,13 @@
+import time
+
 import cv2
 import numpy as np
 import pandas as pd
+import serial
 
 FRAME_HEIGHT = None
+ARDUINO_PORT = 'COM5'
+ARDUINO = serial.Serial(port=ARDUINO_PORT, baudrate=115200, timeout=.1)
 
 
 def load_image(image_path):
@@ -34,29 +39,23 @@ def display_camera_with_image():
     image_blank = load_image('./images/blank.png')
     image_rear_deltoids = load_image('./images/rear_deltoids.png')
 
-    data = pd.read_csv("muscle_data.csv")
-    triceps_signal = data["Triceps Signal"]
-    triceps_signal = (triceps_signal - triceps_signal.min()) / (triceps_signal.max() - triceps_signal.min())
-    mucscle_data_i = 0
-
     if image_blank is None:
         print(f"Error: Could not read image")
         return
 
     while True:
+        # time.sleep(0.05) 
         ret, frame = cap.read()
 
         if not ret:
             print("Error: Can't receive frame. Exiting ...")
             break
 
-        if mucscle_data_i >= len(triceps_signal):
-            mucscle_data_i = 0        
+        emg_value = int(ARDUINO.readline().decode('utf-8'))
+        print(emg_value)
 
-        muscle_image = cv2.addWeighted(image_blank, 1, image_rear_deltoids, triceps_signal[mucscle_data_i], 0)
+        muscle_image = cv2.addWeighted(image_blank, 1, image_rear_deltoids, emg_value/1000, 0)
         combined_frame = np.hstack((frame, muscle_image))
-
-        mucscle_data_i += 1
 
         cv2.imshow('Camera Feed', combined_frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
