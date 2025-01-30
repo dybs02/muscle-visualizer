@@ -7,6 +7,7 @@ FRAME_HEIGHT = None
 FRAME_WIDTH = None
 ARDUINO_PORT = 'COM12'
 ARDUINO = serial.Serial(port=ARDUINO_PORT, baudrate=115200, timeout=.1)
+time.sleep(2)  # Allow time for Arduino to reset
 
 def load_image(image_path, target_height, target_width):
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)  # Load with alpha channel if available
@@ -42,6 +43,17 @@ def set_camera_resolution(cap):
     print(f"Camera resolution set to {max_width}x{max_height}")
     return max_width, max_height
 
+def read_emg_value():
+    try:
+        if ARDUINO.in_waiting > 0:  # Check if data is available
+            line = ARDUINO.readline().decode('utf-8').strip()  # Read line
+            if line.isdigit():  # Ensure it's a valid number
+                return int(line)
+    except (ValueError, serial.SerialException):
+        pass  # Ignore errors
+    return 0  # Default if no valid data
+
+
 def display_camera_with_images(camera_index):
     # cap = cv2.VideoCapture(camera_index)  
     cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW) #app lunches faster
@@ -67,6 +79,7 @@ def display_camera_with_images(camera_index):
     image_right = load_image('./images/arm_right_idle4.png', FRAME_HEIGHT, int(FRAME_WIDTH / 6))
     image_left_active = load_image('./images/arm_left_active.png', FRAME_HEIGHT, int(FRAME_WIDTH / 6))
     image_right_active = load_image('./images/arm_right_active.png', FRAME_HEIGHT, int(FRAME_WIDTH / 6))
+    ARDUINO.flushInput()  # Clear any garbage data
 
     while True:
         ret, frame = cap.read()
@@ -76,10 +89,8 @@ def display_camera_with_images(camera_index):
             break
 
         # Read sensor value (mocked for now as Arduino communication might not work here)
-        try:
-            emg_value = int(ARDUINO.readline().decode('utf-8').strip())
-        except ValueError:
-            emg_value = 0
+        emg_value = read_emg_value()
+
 
         print(f"EMG Value: {emg_value}")
 
